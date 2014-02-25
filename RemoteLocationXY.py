@@ -1,49 +1,49 @@
 '''**************************************************************************
-This is a simple tool for ArcGIS, which finds coordinates of a remote object
-using triangulation data. The triangulation data should include azimuths
-to an observed object from three points of observation and the coordinates
-of the observation points (in WGS84 decimal degrees). The tool allows to
-estimate an error of the measurements and displays it as a buffer of location
-accuracy.
+"Find XY of Remote Location" based on RemoteLocation.py script is a simple tool
+for ArcGIS, which finds coordinates of a remote object using triangulation data.
+The triangulation data should include azimuths to an observed object from three
+points of observation and the coordinates of the observation points (in WGS84
+decimal degrees). The tool allows to estimate an error of the measurements and
+displays it as a buffer of location accuracy.
 
 The input and output data would be stored in xls-spreadsheet and txt-file.
 The name and folder of the output files could be choosen by user or stayed
-by default (C:\Temp_TriVis\TriVisTemp) 
+by default (C:\Temp_RemLocXY\RemoteLocationXY) 
 
-The script bellow was developed by Dorn Moore, Spatial Analyst and
-Dmitrii Sarichev, GIS Intern at the International Crane Foundation
+The script bellow (RemoteLocationXY.py) was developed by Dorn Moore, Spatial
+Analyst and Dmitrii Sarichev, GIS Intern at the International Crane Foundation
 in January-February 2014
 **************************************************************************'''
 
 # Import modules
-import arcpy, os, csv, math
+import arcpy, os, sys, csv, math
 from arcpy import env
 
-#------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 #                            Workspace
-#------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 
-# Choose path and folder or create "C:\\temp" as a workspace by default
-TriVisDir = arcpy.GetParameterAsText(11)
-if TriVisDir == '#' or not TriVisDir: 
-    if not os.path.exists("C:\\Temp_TriVis"):  # provide the
-        os.makedirs("C:\\Temp_TriVis")         # difault path
-    TriVisDir = "C:\\Temp_TriVis"              # if unspecified
+# Choose path and folder or create "C:\Temp_RemLocXY" as a workspace by default
+TempDir = arcpy.GetParameterAsText(11)
+if TempDir == '#' or not TempDir: 
+    if not os.path.exists("C:\\Temp_RemLocXY"):  # provide the
+        os.makedirs("C:\\Temp_RemLocXY")         # difault path
+    TempDir = "C:\\Temp_RemLocXY"                # if unspecified
     
 # Set current workspace
-arcpy.env.scratchWorkspace = TriVisDir         
-arcpy.env.workspace = TriVisDir
+arcpy.env.scratchWorkspace = TempDir         
+arcpy.env.workspace = TempDir
 
-#------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 #                   Create Txt-File and Input Data
-#------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 
-# Input name of the file or set "TriVisTemp.txt" by default
+# Input name of the file or set "RemoteLocationXY" by default
 name = arcpy.GetParameterAsText(12)
 if name == '#' or not name: 
-    name = "TriVisTemp"
+    name = "RemoteLocationXY"
 filename = name + ".txt"
-filepath = os.path.join(TriVisDir, filename)   # Provide filepathe
+filepath = os.path.join(TempDir, filename)   # Provide filepathe
 
 # Make the first row a list of the field names
 fields = ["lat1","lon1","az1","lat2","lon2","az2","lat3","lon3","az3","dist","Xin","Yin","r"]
@@ -65,7 +65,7 @@ table = arcpy.SetParameter(10, filepath)
 avgLat = (float(lat1)+float(lat2)+float(lat3))/3
 avgLon = (float(lon1)+float(lon2)+float(lon3))/3
 
-# Define Spatial Refernence for WGS84
+# Define Spatial Reference for WGS84
 wgs = arcpy.SpatialReference(4326)
 
 # Set the values as nought by default
@@ -77,11 +77,6 @@ r = 0
 row_input = [lat1,lon1,az1,lat2,lon2,az2,lat3,lon3,az3,dist,Xin,Yin,r]
  
 # Write the CSV file
-writer = csv.writer(open(filepath,"wb"))
-write = writer.writerow
-write(fields)
-write(row_input)
-
 with open(filepath,"wb") as f:
         writer = csv.writer(f)     
         write = writer.writerow
@@ -89,9 +84,9 @@ with open(filepath,"wb") as f:
         write(row_input)
 f.close()
 
-#------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 #                  Overwriting of Inputted Data
-#------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 
 # Enable the ability to overwrite existing data
 arcpy.env.overwriteOutput = True
@@ -107,68 +102,103 @@ df = arcpy.mapping.ListDataFrames(mxd,"*")[0]
 for lyr in arcpy.mapping.ListLayers(mxd, "", df):
     try:
         # If the workspacePath is equal to our folder path
-        if lyr.workspacePath == TriVisDir:
+        if lyr.workspacePath == TempDir:
             #Delete the layer so we start fresh
             arcpy.mapping.RemoveLayer(df, lyr)
     except:
         arcpy.AddWarning("Removal of web based layer skipped.")
      
-#------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 #         Create and Display Lines and Points of Observations
-#------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 
-# Local variables:
+# Set local variables
 ## Were using a Concatenate to make the path of the folderpath
 ## This combines the filename and filepath so the OS can read it.
-Line_3 = os.path.join(str(TriVisDir),"TriVisTemp_BearingDistanceTo3.shp")
-Line_1 = os.path.join(str(TriVisDir),"TriVisTemp_BearingDistanceTo1.shp")
-Line_2 = os.path.join(str(TriVisDir),"TriVisTemp_BearingDistanceTo2.shp")
-start_point_1 = "TriVisTemp_Layer1"
-start_point_2 = "TriVisTemp_Layer2"
-start_point_3 = "TriVisTemp_Layer3"
-points_shp = os.path.join(str(TriVisDir),"TriangulationPoints.shp")
+line_1 = os.path.join(str(TempDir),"line_1.shp")
+line_2 = os.path.join(str(TempDir),"line_2.shp")
+line_3 = os.path.join(str(TempDir),"line_3.shp")
+lines = os.path.join(str(TempDir),"ObservationLines.shp")
+startpoint_1 = os.path.join(str(TempDir),"ObsPoint1")
+startpoint_2 = os.path.join(str(TempDir),"ObsPoint2")
+startpoint_3 = os.path.join(str(TempDir),"ObsPoint3")
+startpoints = os.path.join(str(TempDir),"ObservationPoints.shp")
 
 # Create lines and points
 ## Process: bearings and distances to lines
-arcpy.BearingDistanceToLine_management(filepath, Line_1, "lon1", "lat1", "dist", "METERS", "az1", "DEGREES", "GEODESIC", "", "GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]];-400 -400 1000000000;-100000 10000;-100000 10000;8.98315284119522E-09;0.001;0.001;IsHighPrecision")
-arcpy.BearingDistanceToLine_management(filepath, Line_2, "lon2", "lat2", "dist", "METERS", "az2", "DEGREES", "GEODESIC", "", "GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]];-400 -400 1000000000;-100000 10000;-100000 10000;8.98315284119522E-09;0.001;0.001;IsHighPrecision")
-arcpy.BearingDistanceToLine_management(filepath, Line_3, "lon3", "lat3", "dist", "METERS", "az3", "DEGREES", "GEODESIC", "", "GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]];-400 -400 1000000000;-100000 10000;-100000 10000;8.98315284119522E-09;0.001;0.001;IsHighPrecision")
+arcpy.BearingDistanceToLine_management(filepath, line_1, "lon1", "lat1", "dist", "METERS", "az1", "DEGREES", "GEODESIC", "", "GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]];-400 -400 1000000000;-100000 10000;-100000 10000;8.98315284119522E-09;0.001;0.001;IsHighPrecision")
+arcpy.BearingDistanceToLine_management(filepath, line_2, "lon2", "lat2", "dist", "METERS", "az2", "DEGREES", "GEODESIC", "", "GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]];-400 -400 1000000000;-100000 10000;-100000 10000;8.98315284119522E-09;0.001;0.001;IsHighPrecision")
+arcpy.BearingDistanceToLine_management(filepath, line_3, "lon3", "lat3", "dist", "METERS", "az3", "DEGREES", "GEODESIC", "", "GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]];-400 -400 1000000000;-100000 10000;-100000 10000;8.98315284119522E-09;0.001;0.001;IsHighPrecision")
 
-## Make XY Event Layers
-arcpy.MakeXYEventLayer_management(filepath, "lon1", "lat1", start_point_1, "", "")
-arcpy.MakeXYEventLayer_management(filepath, "lon2", "lat2", start_point_2, "", "")
-arcpy.MakeXYEventLayer_management(filepath, "lon3", "lat3", start_point_3, "", "")
+## Make XY Event Layers: creating of start points in WGS84 using inputed data
+arcpy.MakeXYEventLayer_management(filepath, "lon1", "lat1", startpoint_1, wgs, "")
+arcpy.MakeXYEventLayer_management(filepath, "lon2", "lat2", startpoint_2, wgs, "")
+arcpy.MakeXYEventLayer_management(filepath, "lon3", "lat3", startpoint_3, wgs, "")
 
-## Process: AddXY Event Layers to single Point file
-arcpy.CopyFeatures_management(start_point_1, points_shp)
-arcpy.Append_management(start_point_2, points_shp)
-arcpy.Append_management(start_point_3, points_shp)
+## Merge all points and all lines in two layers by geometry type
+arcpy.Merge_management([startpoint_1,startpoint_2,startpoint_3],startpoints)
+arcpy.Merge_management([line_1,line_2,line_3],lines)
 
-# Adding outputs to map
-# create a new layer
-newlayer0 = arcpy.mapping.Layer(Line_1)
-newlayer1 = arcpy.mapping.Layer(Line_2)
-newlayer2 = arcpy.mapping.Layer(Line_3)
-newlayer3 = arcpy.mapping.Layer(points_shp)
+# Change tables of the new layers
+## Delete fields excluding "dist" field and use it as the field of "distingush" for setting of unique symbology
+## Calculate ID of "dist" fields
+arcpy.DeleteField_management(lines,["lat1","lon1","az1","lat2","lon2","az2","lat3","lon3","az3"])
+arcpy.CalculateField_management(lines, "dist", "!FID!+1", "PYTHON", "")
+arcpy.DeleteField_management(startpoints,["lat1","lon1","az1","lat2","lon2","az2","lat3","lon3","az3","Xin","Yin","r"])
+arcpy.CalculateField_management(startpoints, "dist", "!FID!+1", "PYTHON", "")
 
-# add the layer to the map at the bottom of the TOC in data frame 0
+# Adding outputs to the map
+## create new layers
+newlayer0 = arcpy.mapping.Layer(lines)
+newlayer1 = arcpy.mapping.Layer(startpoints)
+
+## add the layer to the map at the bottom of the TOP in data frame 0
 arcpy.mapping.AddLayer(df, newlayer0,"TOP")
 arcpy.mapping.AddLayer(df, newlayer1,"TOP")
-arcpy.mapping.AddLayer(df, newlayer2,"TOP")
-arcpy.mapping.AddLayer(df, newlayer3,"TOP")
 
-#------------------------------------------------------------------------
+## Get relative path of the executing script. It is required for creating path to the templates (*.lyr-files) of symbology   
+relatpath = os.path.dirname(__file__) # in case of error here you can use alternative way: os.path.realpath(os.path.dirname(sys.argv[0]))
+
+## Set symbology of the buffer according to the "startpoints.lyr" template
+try:
+    ### Change simbology of the points
+    updateLayer = arcpy.mapping.ListLayers(mxd, "ObservationPoints", df)[0]
+    stylepath = relatpath+"\\RemLocStyles\\startpoints.lyr"  # if you do not like the default symbology of "ObservationPoints" layer you can change this lyr-file as you wish and it will be used as a new default template
+    sourceLayer = arcpy.mapping.Layer(stylepath)
+    arcpy.mapping.UpdateLayer(df, updateLayer, sourceLayer, True)
+    updateLayer.showLabels = True # switching on of the labels
+    ##### Set label properties
+    if updateLayer.supports("LABELCLASSES"):
+        for lblClass in updateLayer.labelClasses:
+            lblClass.expression = '"<CLR red=\'178\' green=\'178\' blue=\'178\'><FNT size = \'9\'>"&[dist]&"</FNT></CLR>"' # here you can change color and size of the labels
+            lblClass.showLabels = True
+except:
+    ### if the previous block of code hasn't changed the symbology it means the patterns of the layers haven't been found
+    arcpy.AddWarning("\n*.lyr-pattern of the \"ObservationPoints\" layer hasn't been found.\n  The symbology has been set by default.\n")
+
+## Set symbology of the startpoints layer according to the "lines.lyr" template
+try:
+    ### Change simbology of the lines
+    updateLayer = arcpy.mapping.ListLayers(mxd, "ObservationLines", df)[0]
+    stylepath = relatpath+"\\RemLocStyles\\lines.lyr" # if you do not like the default symbology of "ObservationLines" layer you can change this lyr-file as you wish and it will be used as a new default template
+    sourceLayer = arcpy.mapping.Layer(stylepath)
+    arcpy.mapping.UpdateLayer(df, updateLayer, sourceLayer, True)
+except:
+    ### if the previous block of code hasn't changed the symbology it means the patterns of the layers haven't been found
+    arcpy.AddWarning("\n*.lyr-pattern of the \"ObservationLines\" layer hasn't been found.\n  The symbology has been set by default.\n")
+
+#----------------------------------------------------------------------------
 #          Get Points of Intersection and Check Triangulation
-#------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 
-# Find intersections of Line_1, Line_2 and Line_3
+# Find intersections of line_1, line_2 and line_3
 ## Local variables
-XY1 = os.path.join(str(TriVisDir),"TriVisTemp_XY1.shp")
-XY2 = os.path.join(str(TriVisDir),"TriVisTemp_XY2.shp")
-XY3 = os.path.join(str(TriVisDir),"TriVisTemp_XY3.shp")
+XY1 = os.path.join(str(TempDir),"RemLocXYTemp_XY1.shp")
+XY2 = os.path.join(str(TempDir),"RemLocXYTemp_XY2.shp")
+XY3 = os.path.join(str(TempDir),"RemLocXYTemp_XY3.shp")
 
 ## Try to create the intersection point of lines 2 and 3
-arcpy.Intersect_analysis(Line_2 + " #;" + Line_3 +" #", XY1, "ALL", "", "POINT")
+arcpy.Intersect_analysis(line_2 + " #;" + line_3 +" #", XY1, "ALL", "", "POINT")
 ### Count the points in the output layer and export the result in integer value
 Count1 = arcpy.GetCount_management(XY1)
 CountXY1 = int(Count1.getOutput(0))
@@ -178,7 +208,7 @@ if CountXY1!=1:
     arcpy.AddWarning("\nObservation lines #2 and #3 do not intersect.\nThe triangulation is invalid!\n")
     
 ## Try to create the intersection point of lines 1 and 3
-arcpy.Intersect_analysis(Line_1 + " #;" + Line_3 +" #", XY2, "ALL", "", "POINT")
+arcpy.Intersect_analysis(line_1 + " #;" + line_3 +" #", XY2, "ALL", "", "POINT")
 ### Count the points in the output layer and export the result in integer value
 Count2 = arcpy.GetCount_management(XY2)
 CountXY2 = int(Count2.getOutput(0))
@@ -188,7 +218,7 @@ if CountXY2!=1:
     arcpy.AddWarning("\nObservation lines #1 and #3 do not intersect.\nThe triangulation is invalid!\n")
     
 ## Try to create the intersection point of lines 1 and 2
-arcpy.Intersect_analysis(Line_1 + " #;" + Line_2 +" #", XY3, "ALL", "", "POINT")
+arcpy.Intersect_analysis(line_1 + " #;" + line_2 +" #", XY3, "ALL", "", "POINT")
 ### Count the points in the output layer and export the result in integer value
 Count3 = arcpy.GetCount_management(XY3)
 CountXY3 = int(Count3.getOutput(0))
@@ -197,19 +227,19 @@ if CountXY3!=1:
     # If it is false then print the warning:
     arcpy.AddWarning("\nObservation lines #1 and #2 do not intersect.\nThe triangulation is invalid!\n")
 
-#------------------------------------------------------------------------
-#     If There is a Triangle then find Center and Radius of Incircle
-#------------------------------------------------------------------------
+#----------------------------------------------------------------------------
+# If There is a Triangle then find The Center and The Radius of The Incircle
+#----------------------------------------------------------------------------
 
-# If there are all three points then execute triangulation: find incenter and error of measurements 
+# If there are all three points then execute triangulation: find incenter and error of the measurements 
 IntersectionCount = CountXY1+CountXY2+CountXY3
 if IntersectionCount == 3:
     # Calculate incenter coordinates
-    ## Reprogect point layers in UTM (zone 16N)
+    ## Reprogect point layers in UTM
     ### Local variable
-    XY1_UTM = os.path.join(str(TriVisDir),"TriVisTemp_XY1_UTM.shp")
-    XY2_UTM = os.path.join(str(TriVisDir),"TriVisTemp_XY2_UTM.shp")
-    XY3_UTM = os.path.join(str(TriVisDir),"TriVisTemp_XY3_UTM.shp")
+    XY1_UTM = os.path.join(str(TempDir),"RemLocXYTemp_XY1_UTM.shp")
+    XY2_UTM = os.path.join(str(TempDir),"RemLocXYTemp_XY2_UTM.shp")
+    XY3_UTM = os.path.join(str(TempDir),"RemLocXYTemp_XY3_UTM.shp")
 
     ### Determine the correct UTM Zone
     if avgLat >0:   #Northern Hemisphere
@@ -269,13 +299,14 @@ if IntersectionCount == 3:
     p = (A+B+C)/2
     ## Calculate area of the triangle: S = sqroot(p*(p-A)*(p-B)*(p-C))
     S = math.sqrt(p*(p-A)*(p-B)*(p-C))
-    ## Calculate error: R = S/p ("//" - return integer)
+    ## Calculate error: R = S/p
     R = S/p
     
-    # Input the coordinates of incenter and the value of error in the inputed txt-file
-    filepath_UTM = os.path.join(TriVisDir,"TriVisTempUTM.txt")
+    # Input the coordinates of incenter and the value of error in the temporary txt-file
+    ## Set variable
+    filepath_UTM = os.path.join(TempDir,"RemLocXYTempUTM.txt")
     row_intermed = [lat1,lon1,az1,lat2,lon2,az2,lat3,lon3,az3,dist,Xin_UTM,Yin_UTM,R]
-
+    ## Write data into the temporary txt-file
     with open(filepath_UTM,"wb") as f:
         writer = csv.writer(f)     
         write = writer.writerow
@@ -284,15 +315,33 @@ if IntersectionCount == 3:
     f.close()
   
     # Make XY event layer
-    Incenter_UTM = os.path.join(str(TriVisDir),"ObjectsLocation_UTM.shp")
+    Incenter_UTM = os.path.join(str(TempDir),"ObjectsLocation_UTM.shp")
     arcpy.MakeXYEventLayer_management(filepath_UTM, "xin", "yin", Incenter_UTM, prj)
     
     ## Reproject the incenter layer back to WGS 84
-    Incenter = os.path.join(str(TriVisDir),"ObjectLocation.shp") 
+    Incenter = os.path.join(str(TempDir),"ObjectLocation.shp") 
     arcpy.Project_management(Incenter_UTM, Incenter, wgs)
-    newlayer5 = arcpy.mapping.Layer(Incenter)
-    arcpy.mapping.AddLayer(df, newlayer5,"TOP")
-    
+
+    ## Add the new layer in the current map frame
+    newlayer2 = arcpy.mapping.Layer(Incenter)
+    arcpy.mapping.AddLayer(df, newlayer2,"TOP")
+    ### Set the symbology of the "ObjectLocation" layer according to the "objectloc.lyr" template
+    try:
+        #### Change simbology of the points
+        updateLayer = arcpy.mapping.ListLayers(mxd, "ObjectLocation", df)[0]
+        stylepath = relatpath+"\\RemLocStyles\\objectloc.lyr" # if you do not like the default symbology you can change this lyr-file as you wish and it will be used as a new default template
+        sourceLayer = arcpy.mapping.Layer(stylepath)
+        arcpy.mapping.UpdateLayer(df, updateLayer, sourceLayer, True)
+        updateLayer.showLabels = True
+        #### Set label properties
+        if updateLayer.supports("LABELCLASSES"):
+            for lblClass in updateLayer.labelClasses:
+                lblClass.expression = '"<CLR red=\'178\' green=\'178\' blue=\'178\'><FNT size = \'9\'>" & "X "& [Xin] &vbCrLf&"Y "& [Yin] &vbCrLf& "Error = "& round( [r], 1)&" m" & "</FNT></CLR>"'
+                lblClass.showLabels = True
+    except:
+        #### if the previous block of code hasn't changed the symbology it means the patterns of the layers haven't been found
+        arcpy.AddWarning("\n*.lyr-pattern of the \"ObjectLocation\" layer hasn't been found.\n  The symbology has been set by default.\n")
+            
     ## Assign variables:
     ### Get Xin, Yin coordinates
     desc = arcpy.Describe(Incenter)
@@ -319,39 +368,44 @@ if IntersectionCount == 3:
     
     # Export txt-file to Excel table
     name_xls = name + '.xls'
-    output_xls = os.path.join(TriVisDir, name_xls)
+    output_xls = os.path.join(TempDir, name_xls)
     arcpy.TableToExcel_conversion(Incenter, output_xls)
 
     ## Add result message in processing box
     arcpy.AddMessage("\nObject Location: \n" + "X " + str(Xin) + ", Y " + str(Yin) + " (in WGS-84)" + "\nEst. Error = " + str(R) + " m \n")
 
-    # Create buffer of errors around of incenter; radius of the buffer equal the radius of the incircle (R)
-    bufferror = os.path.join(str(TriVisDir),"Accuracy.shp")
+    # Create buffer of errors around of the incenter; radius of the buffer equal the radius of the incircle (R)
+    bufferror = os.path.join(str(TempDir),"Accuracy.shp")
     arcpy.Buffer_analysis(Incenter, bufferror, str(R) + " Meters", "FULL", "ROUND", "NONE", "")
-    newlayer6 = arcpy.mapping.Layer(bufferror)
-    arcpy.mapping.AddLayer(df, newlayer6,"AUTO_ARRANGE")
+    ## Add new buffer layer in the current map frame
+    newlayer3 = arcpy.mapping.Layer(bufferror)
+    arcpy.mapping.AddLayer(df, newlayer3,"AUTO_ARRANGE")
+    ### Set symbology of the buffer according to the "buffer.lyr" template
     try:
-        ## Change simbology of the buffer
+        #### Change simbology of the buffer
         updateLayer = arcpy.mapping.ListLayers(mxd, "Accuracy", df)[0]
-        stylepath = r"C:\Users\Dmitrii\Desktop\NewTriVisScript\Style\Buffer.lyr" # !!! Need use relative path!!!
+        stylepath = relatpath+"\\RemLocStyles\\buffer.lyr" # if you do not like the default symbology you can change this lyr-file as you wish and it will be used as a new default template
         sourceLayer = arcpy.mapping.Layer(stylepath)
         arcpy.mapping.UpdateLayer(df, updateLayer, sourceLayer, True)
+        updateLayer.transparency = 70 # set transparency of the "Accuracy" layer. It is 70% by default
     except:
-        ## if the previous block of code hasn't changed the symbology it means the patterns of the layers haven't been found
-        arcpy.AddWarning("\n*.lyr-patterns of the layers haven't been found.\n  The symbology has been set by default.\n")
-
-    # Create labels
-    Lable1 = "X " + str(Xin) + ", Y " + str(Yin)
-    Lable2 = "Est.Eror = " + str(R) + " m"           
-
+        #### if the previous block of code hasn't changed the symbology it means the patterns of the layers haven't been found
+        arcpy.AddWarning("\n*.lyr-pattern of the \"Accuracy\" layer hasn't been found.\n  The symbology has been set by default.\n")
+    
     # Delete intermediate files
     ## Check to see if intermediate data exist; if they do, then delete them
-    intermed = [XY1,XY2,XY3,XY1_UTM,XY2_UTM,XY3_UTM,filepath_UTM,Incenter_UTM]
+    intermed = [line_1,line_2,line_3,startpoint_1,startpoint_2,startpoint_3,XY1,XY2,XY3,XY1_UTM,XY2_UTM,XY3_UTM,filepath_UTM,Incenter_UTM]
     for intermed in intermed:
         if arcpy.Exists(intermed):
             arcpy.Delete_management(intermed)
 
 else:
     # Print error message in processing box:
-    arcpy.AddError("There is insufficient or wrong data for build of triangle, deriving coordinates\nof observed object and estimation of error of the measurements\n")
-
+    arcpy.AddWarning("There is insufficient or wrong data for build of triangle, deriving coordinates\nof observed object and estimation of error of the measurements\n")
+    
+    # Delete intermediate files
+    ## Check to see if intermediate data exist; if they do, then delete them
+    intermed = [line_1,line_2,line_3,startpoint_1,startpoint_2,startpoint_3,XY1,XY2,XY3]
+    for intermed in intermed:
+        if arcpy.Exists(intermed):
+            arcpy.Delete_management(intermed)
