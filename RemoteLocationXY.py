@@ -1,19 +1,25 @@
 '''**************************************************************************
-"Find XY of Remote Location" based on RemoteLocation.py script is a simple tool
-for ArcGIS, which finds coordinates of a remote object using triangulation data.
+"Triangulate the XY of Remote Location" is a simple tool
+for ArcGIS, which finds the coordinates of a remote object using triangulation data.
 The triangulation data should include azimuths to an observed object from three
 points of observation and the coordinates of the observation points (in WGS84
-decimal degrees). The tool allows to estimate an error of the measurements and
+decimal degrees). The tool estimates an error of the measurements and
 displays it as a buffer of location accuracy.
 
-The input and output data would be stored in xls-spreadsheet and txt-file.
-The name and folder of the output files could be choosen by user or stayed
-by default (C:\Temp_RemLocXY\RemoteLocationXY) 
+The input and output data are stored in Excel spreadsheet (.xls) and a Comma Separated
+Value text file (.txt). The name and folder of the output files could be choosen by user
+or left in the default folder (C:\Temp_RemLocXY\RemoteLocationXY). 
 
 The script bellow (RemoteLocationXY.py) was developed by Dorn Moore, Spatial
 Analyst and Dmitrii Sarichev, GIS Intern at the International Crane Foundation
 in January-February 2014
+
+For more information cotact dorn@savingcranes.org.
 **************************************************************************'''
+
+arcpy.AddWarning("Triangulate the XY of Remote Location\nCopyright (C) 2014  International Crane Foundation\n")
+arcpy.AddWarning("This program is free software: you can redistribute it and or modify\nit under the terms of the GNU General Public License as published by \nthe Free Software Foundation, either version 3 of the License, or\nany later version.\n")
+arcpy.AddWarning("This program is distributed in the hope that it will be useful,\nbut WITHOUT ANY WARRANTY; without even the implied warranty of \nMERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the \nGNU General Public License for more details. \n\nYou should have received a copy of the GNU General Public License\nalong with this program.  If not, see <http://www.gnu.org/licenses/>.\n")
 
 # Import modules
 import arcpy, os, sys, csv, math
@@ -27,12 +33,14 @@ from arcpy import env
 TempDir = arcpy.GetParameterAsText(11)
 if TempDir == '#' or not TempDir: 
     if not os.path.exists("C:\\Temp_RemLocXY"):  # provide the
-        os.makedirs("C:\\Temp_RemLocXY")         # difault path
+        os.makedirs("C:\\Temp_RemLocXY")         # default path
     TempDir = "C:\\Temp_RemLocXY"                # if unspecified
     
 # Set current workspace
 arcpy.env.scratchWorkspace = TempDir         
 arcpy.env.workspace = TempDir
+# Define Spatial Reference for WGS84
+wgs = arcpy.SpatialReference(4326)
 
 #----------------------------------------------------------------------------
 #                   Create Txt-File and Input Data
@@ -43,7 +51,7 @@ name = arcpy.GetParameterAsText(12)
 if name == '#' or not name: 
     name = "RemoteLocationXY"
 filename = name + ".txt"
-filepath = os.path.join(TempDir, filename)   # Provide filepathe
+filepath = os.path.join(TempDir, filename)   # Provide filepath
 
 # Make the first row a list of the field names
 fields = ["lat1","lon1","az1","lat2","lon2","az2","lat3","lon3","az3","dist","Xin","Yin","r"]
@@ -61,12 +69,9 @@ az3 = arcpy.GetParameterAsText(8)
 dist = arcpy.GetParameterAsText(9)
 table = arcpy.SetParameter(10, filepath)
 
-# Create AVG lat and lon for use later
+# Create average (avg) latitude and longitude for use later
 avgLat = (float(lat1)+float(lat2)+float(lat3))/3
 avgLon = (float(lon1)+float(lon2)+float(lon3))/3
-
-# Define Spatial Reference for WGS84
-wgs = arcpy.SpatialReference(4326)
 
 # Set the values as nought by default
 Xin = 0
@@ -85,7 +90,7 @@ with open(filepath,"wb") as f:
 f.close()
 
 #----------------------------------------------------------------------------
-#                  Overwriting of Inputted Data
+#                  Overwrite Existing Maplayers
 #----------------------------------------------------------------------------
 
 # Enable the ability to overwrite existing data
@@ -106,7 +111,7 @@ for lyr in arcpy.mapping.ListLayers(mxd, "", df):
             #Delete the layer so we start fresh
             arcpy.mapping.RemoveLayer(df, lyr)
     except:
-        arcpy.AddWarning("Removal of web based layer skipped.")
+        arcpy.AddWarning("Web based layer left on map.")
      
 #----------------------------------------------------------------------------
 #         Create and Display Lines and Points of Observations
@@ -126,9 +131,9 @@ startpoints = os.path.join(str(TempDir),"ObservationPoints.shp")
 
 # Create lines and points
 ## Process: bearings and distances to lines
-arcpy.BearingDistanceToLine_management(filepath, line_1, "lon1", "lat1", "dist", "METERS", "az1", "DEGREES", "GEODESIC", "", "GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]];-400 -400 1000000000;-100000 10000;-100000 10000;8.98315284119522E-09;0.001;0.001;IsHighPrecision")
-arcpy.BearingDistanceToLine_management(filepath, line_2, "lon2", "lat2", "dist", "METERS", "az2", "DEGREES", "GEODESIC", "", "GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]];-400 -400 1000000000;-100000 10000;-100000 10000;8.98315284119522E-09;0.001;0.001;IsHighPrecision")
-arcpy.BearingDistanceToLine_management(filepath, line_3, "lon3", "lat3", "dist", "METERS", "az3", "DEGREES", "GEODESIC", "", "GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]];-400 -400 1000000000;-100000 10000;-100000 10000;8.98315284119522E-09;0.001;0.001;IsHighPrecision")
+arcpy.BearingDistanceToLine_management(filepath, line_1, "lon1", "lat1", "dist", "METERS", "az1", "DEGREES", "GEODESIC", "", wgs)
+arcpy.BearingDistanceToLine_management(filepath, line_2, "lon2", "lat2", "dist", "METERS", "az2", "DEGREES", "GEODESIC", "", wgs)
+arcpy.BearingDistanceToLine_management(filepath, line_3, "lon3", "lat3", "dist", "METERS", "az3", "DEGREES", "GEODESIC", "", wgs)
 
 ## Make XY Event Layers: creating of start points in WGS84 using inputed data
 arcpy.MakeXYEventLayer_management(filepath, "lon1", "lat1", startpoint_1, wgs, "")
@@ -327,7 +332,7 @@ if IntersectionCount == 3:
     arcpy.mapping.AddLayer(df, newlayer2,"TOP")
     ### Set the symbology of the "ObjectLocation" layer according to the "objectloc.lyr" template
     try:
-        #### Change simbology of the points
+        #### Change symbology of the points
         updateLayer = arcpy.mapping.ListLayers(mxd, "ObjectLocation", df)[0]
         stylepath = relatpath+"\\RemLocStyles\\objectloc.lyr" # if you do not like the default symbology you can change this lyr-file as you wish and it will be used as a new default template
         sourceLayer = arcpy.mapping.Layer(stylepath)
@@ -372,7 +377,7 @@ if IntersectionCount == 3:
     arcpy.TableToExcel_conversion(Incenter, output_xls)
 
     ## Add result message in processing box
-    arcpy.AddMessage("\nObject Location: \n" + "X " + str(Xin) + ", Y " + str(Yin) + " (in WGS-84)" + "\nEst. Error = " + str(R) + " m \n")
+    arcpy.AddMessage("\nObject Location: \n" + "X " + str(Xin) + ", Y " + str(Yin) + " (in WGS-84)" + "\nEst. Error = " + str(R) + " meters \n")
 
     # Create buffer of errors around of the incenter; radius of the buffer equal the radius of the incircle (R)
     bufferror = os.path.join(str(TempDir),"Accuracy.shp")
