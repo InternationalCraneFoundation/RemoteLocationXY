@@ -131,26 +131,26 @@ startpoints = os.path.join(str(TempDir),"ObservationPoints.shp")
 
 # Create lines and points
 ## Process: bearings and distances to lines
-arcpy.BearingDistanceToLine_management(filepath, line_1, "lon1", "lat1", "dist", "METERS", "az1", "DEGREES", "GEODESIC", "", wgs)
-arcpy.BearingDistanceToLine_management(filepath, line_2, "lon2", "lat2", "dist", "METERS", "az2", "DEGREES", "GEODESIC", "", wgs)
-arcpy.BearingDistanceToLine_management(filepath, line_3, "lon3", "lat3", "dist", "METERS", "az3", "DEGREES", "GEODESIC", "", wgs)
+arcpy.management.BearingDistanceToLine(filepath, line_1, "lon1", "lat1", "dist", "METERS", "az1", "DEGREES", "GEODESIC", "", wgs)
+arcpy.management.BearingDistanceToLine(filepath, line_2, "lon2", "lat2", "dist", "METERS", "az2", "DEGREES", "GEODESIC", "", wgs)
+arcpy.management.BearingDistanceToLine(filepath, line_3, "lon3", "lat3", "dist", "METERS", "az3", "DEGREES", "GEODESIC", "", wgs)
 
 ## Make XY Event Layers: creating of start points in WGS84 using inputed data
-arcpy.MakeXYEventLayer_management(filepath, "lon1", "lat1", startpoint_1, wgs, "")
-arcpy.MakeXYEventLayer_management(filepath, "lon2", "lat2", startpoint_2, wgs, "")
-arcpy.MakeXYEventLayer_management(filepath, "lon3", "lat3", startpoint_3, wgs, "")
+arcpy.management.MakeXYEventLayer(filepath, "lon1", "lat1", startpoint_1, wgs, "")
+arcpy.management.MakeXYEventLayer(filepath, "lon2", "lat2", startpoint_2, wgs, "")
+arcpy.management.MakeXYEventLayer(filepath, "lon3", "lat3", startpoint_3, wgs, "")
 
 ## Merge all points and all lines in two layers by geometry type
-arcpy.Merge_management([startpoint_1,startpoint_2,startpoint_3],startpoints)
-arcpy.Merge_management([line_1,line_2,line_3],lines)
+arcpy.management.Merge([startpoint_1,startpoint_2,startpoint_3],startpoints)
+arcpy.management.Merge([line_1,line_2,line_3],lines)
 
 # Change tables of the new layers
 ## Delete fields excluding "dist" field and use it as the field of "distingush" for setting of unique symbology
 ## Calculate ID of "dist" fields
-arcpy.DeleteField_management(lines,["lat1","lon1","az1","lat2","lon2","az2","lat3","lon3","az3"])
-arcpy.CalculateField_management(lines, "dist", "!FID!+1", "PYTHON", "")
-arcpy.DeleteField_management(startpoints,["lat1","lon1","az1","lat2","lon2","az2","lat3","lon3","az3","Xin","Yin","r"])
-arcpy.CalculateField_management(startpoints, "dist", "!FID!+1", "PYTHON", "")
+arcpy.management.DeleteField(lines,["lat1","lon1","az1","lat2","lon2","az2","lat3","lon3","az3"])
+arcpy.management.CalculateField(lines, "dist", "!FID!+1", "PYTHON", "")
+arcpy.management.DeleteField(startpoints,["lat1","lon1","az1","lat2","lon2","az2","lat3","lon3","az3","Xin","Yin","r"])
+arcpy.management.CalculateField(startpoints, "dist", "!FID!+1", "PYTHON", "")
 
 # Adding outputs to the map
 ## create new layers
@@ -203,9 +203,9 @@ XY2 = os.path.join(str(TempDir),"RemLocXYTemp_XY2.shp")
 XY3 = os.path.join(str(TempDir),"RemLocXYTemp_XY3.shp")
 
 ## Try to create the intersection point of lines 2 and 3
-arcpy.Intersect_analysis(line_2 + " #;" + line_3 +" #", XY1, "ALL", "", "POINT")
+arcpy.analysis.Intersect(line_2 + " #;" + line_3 +" #", XY1, "ALL", "", "POINT")
 ### Count the points in the output layer and export the result in integer value
-Count1 = arcpy.GetCount_management(XY1)
+Count1 = arcpy.management.GetCount(XY1)
 CountXY1 = int(Count1.getOutput(0))
 ### Make sure, there is only one point in the output layer
 if CountXY1!=1:   
@@ -213,9 +213,9 @@ if CountXY1!=1:
     arcpy.AddWarning("\nObservation lines #2 and #3 do not intersect.\nThe triangulation is invalid!\n")
     
 ## Try to create the intersection point of lines 1 and 3
-arcpy.Intersect_analysis(line_1 + " #;" + line_3 +" #", XY2, "ALL", "", "POINT")
+arcpy.analysis.Intersect(line_1 + " #;" + line_3 +" #", XY2, "ALL", "", "POINT")
 ### Count the points in the output layer and export the result in integer value
-Count2 = arcpy.GetCount_management(XY2)
+Count2 = arcpy.management.GetCount(XY2)
 CountXY2 = int(Count2.getOutput(0))
 ### Make sure, there is only one point in the output layer
 if CountXY2!=1:
@@ -223,9 +223,9 @@ if CountXY2!=1:
     arcpy.AddWarning("\nObservation lines #1 and #3 do not intersect.\nThe triangulation is invalid!\n")
     
 ## Try to create the intersection point of lines 1 and 2
-arcpy.Intersect_analysis(line_1 + " #;" + line_2 +" #", XY3, "ALL", "", "POINT")
+arcpy.analysis.Intersect(line_1 + " #;" + line_2 +" #", XY3, "ALL", "", "POINT")
 ### Count the points in the output layer and export the result in integer value
-Count3 = arcpy.GetCount_management(XY3)
+Count3 = arcpy.management.GetCount(XY3)
 CountXY3 = int(Count3.getOutput(0))
 ### Make sure, there is only one point in the output layer
 if CountXY3!=1:
@@ -253,9 +253,9 @@ if IntersectionCount == 3:
         prj = arcpy.SpatialReference(int("327" + str(int(math.floor((avgLon + 180)/6) + 1))))
     
     ### Reprojection:
-    arcpy.Project_management(XY1, XY1_UTM, prj)
-    arcpy.Project_management(XY2, XY2_UTM, prj)
-    arcpy.Project_management(XY3, XY3_UTM, prj)
+    arcpy.management.Project(XY1, XY1_UTM, prj)
+    arcpy.management.Project(XY2, XY2_UTM, prj)
+    arcpy.management.Project(XY3, XY3_UTM, prj)
 
     ## Define variable for incenter calculation
     ### Get X1, Y1 coordinates
@@ -321,11 +321,11 @@ if IntersectionCount == 3:
   
     # Make XY event layer
     Incenter_UTM = os.path.join(str(TempDir),"ObjectsLocation_UTM.shp")
-    arcpy.MakeXYEventLayer_management(filepath_UTM, "xin", "yin", Incenter_UTM, prj)
+    arcpy.management.MakeXYEventLayer(filepath_UTM, "xin", "yin", Incenter_UTM, prj)
     
     ## Reproject the incenter layer back to WGS 84
     Incenter = os.path.join(str(TempDir),"ObjectLocation.shp") 
-    arcpy.Project_management(Incenter_UTM, Incenter, wgs)
+    arcpy.management.Project(Incenter_UTM, Incenter, wgs)
 
     ## Add the new layer in the current map frame
     newlayer2 = arcpy.mapping.Layer(Incenter)
@@ -368,20 +368,20 @@ if IntersectionCount == 3:
     f.close()
     
     # Calculate field: returning of WGS84 coordinates of the center into the attribute table of ObjectLocation.shp
-    arcpy.CalculateField_management(Incenter, "Xin", Xin, "PYTHON")
-    arcpy.CalculateField_management(Incenter, "Yin", Yin, "PYTHON")
+    arcpy.management.CalculateField(Incenter, "Xin", Xin, "PYTHON")
+    arcpy.management.CalculateField(Incenter, "Yin", Yin, "PYTHON")
     
     # Export txt-file to Excel table
     name_xls = name + '.xls'
     output_xls = os.path.join(TempDir, name_xls)
-    arcpy.TableToExcel_conversion(Incenter, output_xls)
+    arcpy.conversion.TableToExcel(Incenter, output_xls)
 
     ## Add result message in processing box
     arcpy.AddMessage("\nObject Location: \n" + "X " + str(Xin) + ", Y " + str(Yin) + " (in WGS-84)" + "\nEst. Error = " + str(R) + " meters \n")
 
     # Create buffer of errors around of the incenter; radius of the buffer equal the radius of the incircle (R)
     bufferror = os.path.join(str(TempDir),"Accuracy.shp")
-    arcpy.Buffer_analysis(Incenter, bufferror, str(R) + " Meters", "FULL", "ROUND", "NONE", "")
+    arcpy.analysis.Buffer(Incenter, bufferror, str(R) + " Meters", "FULL", "ROUND", "NONE", "")
     ## Add new buffer layer in the current map frame
     newlayer3 = arcpy.mapping.Layer(bufferror)
     arcpy.mapping.AddLayer(df, newlayer3,"AUTO_ARRANGE")
@@ -402,7 +402,7 @@ if IntersectionCount == 3:
     intermed = [line_1,line_2,line_3,startpoint_1,startpoint_2,startpoint_3,XY1,XY2,XY3,XY1_UTM,XY2_UTM,XY3_UTM,filepath_UTM,Incenter_UTM]
     for intermed in intermed:
         if arcpy.Exists(intermed):
-            arcpy.Delete_management(intermed)
+            arcpy.management.Delete(intermed)
 
 else:
     # Print error message in processing box:
@@ -413,4 +413,4 @@ else:
     intermed = [line_1,line_2,line_3,startpoint_1,startpoint_2,startpoint_3,XY1,XY2,XY3]
     for intermed in intermed:
         if arcpy.Exists(intermed):
-            arcpy.Delete_management(intermed)
+            arcpy.management.Delete(intermed)
