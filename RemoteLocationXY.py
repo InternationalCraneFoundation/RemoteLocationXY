@@ -162,7 +162,7 @@ arcpy.mapping.AddLayer(df, newlayer0,"TOP")
 arcpy.mapping.AddLayer(df, newlayer1,"TOP")
 
 ## Get relative path of the executing script. It is required for creating path to the templates (*.lyr-files) of symbology   
-relatpath = os.path.dirname(__file__) # in case of error here you can use alternative way: os.path.realpath(os.path.dirname(sys.argv[0]))
+relatpath = os.path.realpath(os.path.dirname(sys.argv[0]))
 
 ## Set symbology of the buffer according to the "startpoints.lyr" template
 try:
