@@ -1,3 +1,5 @@
 TriVis
 ======
 To use, extract the contents to a directory where you can access the tbx (Toolbox) file with ArcGIS. Add the Toolbox in ArcGIS and run the tool.  As long as the py and tbx files and the folder are installed in the same root folder, you should be fine running the tool.
+
+The tool finds the coordinates of a remote object using observation coordinates and azimuths. The triangulation data should include azimuths to an observed object from three (3) points of observation and the coordinates of the observation points (in WGS84 decimal degrees). The tool creates an estimate of error for the coordiante and displays it as a buffer of location around the estimated coordinate. The tools uses an older method to calculate the position and the estimation of the error but it is simplier to calculate. The input and output data are stored in an Excel spreadsheet (.xls) and a Comma Separate Value text file (.txt). The name and folder of the output files could be choosen by user or left blank to use the default (C:\Temp_RemLocXY\RemoteLocationXY). Basic information about the output is also displayed in the process log during the run.
